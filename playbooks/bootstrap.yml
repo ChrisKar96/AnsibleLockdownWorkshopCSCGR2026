@@ -35,9 +35,22 @@
 
   tasks:
 
+    # The lookup('password', ...) plugin generates a random password on first run
+    # and writes it to a file on the controller. On subsequent runs it reads the
+    # existing file, making this task fully idempotent.
+    # Credential files are stored in <repo-root>/credentials/ which is excluded
+    # from git (see .gitignore).
+    - name: Generate and store a password for the ansible account (controller-side)
+      ansible.builtin.set_fact:
+        _bootstrap_user_password: >-
+          {{ lookup('password', playbook_dir + '/../credentials/ansible_'
+             + inventory_hostname + '.cred length=20 chars=ascii_letters,digits') }}
+
     - name: Create the ansible service account
       ansible.builtin.user:
         name: "{{ _bootstrap_user }}"
+        password: "{{ _bootstrap_user_password | password_hash('sha512') }}"
+        update_password: always   # keeps the target in sync with the stored credential
         shell: /bin/bash
         create_home: true
         state: present
@@ -57,20 +70,3 @@
         key: "{{ lookup('file', bootstrap_pubkey_path) }}"
         state: present
         exclusive: true   # ensures no other keys are left on this account
-
-    # The lookup('password', ...) plugin generates a random password on first run
-    # and writes it to a file on the controller. On subsequent runs it reads the
-    # existing file, making this task fully idempotent.
-    # Credential files are stored in <repo-root>/credentials/ which is excluded
-    # from git (see .gitignore).
-    - name: Generate and store a password for the ansible account (controller-side)
-      ansible.builtin.set_fact:
-        _ansible_password: >-
-          {{ lookup('password', playbook_dir + '/../credentials/ansible_'
-             + inventory_hostname + '.cred length=20 chars=ascii_letters,digits') }}
-
-    - name: Set the password on the ansible account
-      ansible.builtin.user:
-        name: "{{ _bootstrap_user }}"
-        password: "{{ _ansible_password | password_hash('sha512') }}"
-        update_password: always   # keeps the target in sync with the stored credential
