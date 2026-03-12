@@ -671,16 +671,16 @@ for f in sorted(glob.glob('reports/**/*.json', recursive=True)):
     d = json.load(open(f))
     s = d.get('summary', {})
     host = f.split('/')[1]
-    print(f'{host}: passed={s.get(\"test-count-passed\",\"?\")}, failed={s.get(\"test-count-failed\",\"?\")}, total={s.get(\"test-count\",\"?\")}')
+    print(f'{host}: {s.get(\"summary-line\")}')
 "
 ```
 
 **Expected output** (fresh install, no hardening applied):
 
 ```
-ansible-controller: passed=42,  failed=238, total=280
-debian-target:      passed=42,  failed=238, total=280
-ubuntu-target:      passed=46,  failed=234, total=280
+ansible-controller: Count: 758, Failed: 69, Skipped: 20, Duration: 2.177s
+debian-target:      Count: 758, Failed: 69, Skipped: 20, Duration: 2.177s
+ubuntu-target:      Count: 750, Failed: 108, Skipped: 19, Duration: 3.531s
 ```
 
 A vanilla OS installation fails the vast majority of CIS controls. This is expected — these controls represent hardening choices that are deliberately not applied by default because they could break general-purpose workloads. Note these numbers down to compare against the post-hardening scores in Section 7.
@@ -692,40 +692,20 @@ The Goss output is a JSON file. Unlike `oscap` which produces a styled HTML repo
 **Option 1 — `jq` (quickest, no extra tools)**
 
 ```bash
-# List all failed checks for a specific host
-jq '[.results[] | select(.successful == false) | {title: .title, resource_type: .resource_type}]' \
-  reports/debian-target/goss_report_*.json
+# Score summary for a host
+jq '.summary | .["summary-line"]' \
+  reports/debian-target/*.json
 
-# Count: total / passed / failed
-jq '.summary | {total: .["test-count"], passed: .["test-count-passed"], failed: .["test-count-failed"]}' \
-  reports/debian-target/goss_report_*.json
+# One-liner per failure (compact, easy to scan)
+jq -r '.results[] | select(.successful == false) | .["summary-line-compact"]' \
+  reports/debian-target/*.json
+
+# Failures grouped by resource type (useful for seeing which control categories need attention)
+jq -r '.results[] | select(.successful == false) | "\(.["resource-type"])\t\(.title)"' \
+  reports/debian-target/*.json | sort
 ```
 
-**Option 2 — Goss `--format` flags (run directly on the host)**
-
-When running `goss validate` interactively on the target, these formats are available:
-
-```bash
-# rspecish — concise pass/fail per control, similar to RSpec test output
-goss --gossfile /path/to/goss.yml validate --format rspecish
-
-# documentation — verbose, one line per check with full descriptions
-goss --gossfile /path/to/goss.yml validate --format documentation
-```
-
-These are useful for spot-checking a single host directly, but don't produce a file you can share or archive.
-
-**Option 3 — Goss built-in HTML output (goss ≥ v0.4.0)**
-
-Newer versions of Goss support `--format html`, producing a styled, self-contained HTML report:
-
-```bash
-goss --gossfile /path/to/goss.yml validate --format html > report.html
-```
-
-Check the version bundled with the role (`goss --version`) before relying on this — the ansible-lockdown roles bundle their own Goss binary, and if it predates v0.4.0 this flag is unavailable.
-
-**Option 4 — Enterprise / long-term storage**
+**Option 2 — Enterprise / long-term storage**
 
 The JSON reports can be ingested by any log aggregation or observability platform:
 
@@ -825,8 +805,7 @@ for f in sorted(glob.glob('reports/**/*.json', recursive=True)):
     d = json.load(open(f))
     s = d.get('summary', {})
     host = f.split('/')[1]
-    report = f.split('/')[-1]
-    print(f'{host}  {report}: passed={s.get(\"test-count-passed\",\"?\")}, failed={s.get(\"test-count-failed\",\"?\")}, total={s.get(\"test-count\",\"?\")}')
+    print(f'{host}: {s.get(\"summary-line\")}')
 "
 ```
 
@@ -899,18 +878,17 @@ The scores should be identical to the post-hardening audit from Section 7 — co
 ### 8.3 What this workshop covered
 
 - **Ansible fundamentals** — agentless SSH-based automation, inventory, playbooks, roles, parallel execution
-- **CIS benchmarks** — what they are, Level 1 vs Level 2, relationship to STIG
+- **CIS benchmarks** — what they are, Level 1 vs Level 2, comparison with STIG
 - **ansible-lockdown** — how to consume a community hardening role, configure it, and run it
 - **Pre/post audit workflow** — use Goss to establish a baseline, harden, then measure improvement
 - **Idempotency** — the same playbook is safe to run repeatedly and will self-correct drift
 
 ### 8.4 What to explore next
 
-- **Level 2 hardening** — set `deb12cis_level_2: true` / `ubtu22cis_level_2: true` in `group_vars/cis_level1.yml` (or move the host to the `cis_level2` group) and observe what additional controls are applied
+- **Level 2 hardening** — Move hosts to the `cis_level2` group and observe what additional controls are applied
 - **Ansible Vault** — encrypting secrets (passwords, keys) inside playbooks and vars files
-- **CI/CD integration** — trigger hardening automatically in GitHub Actions or GitLab CI when a new base image is built
-- **Configuration drift detection** — run the audit playbook on a cron job; alert when the `failed` count increases
-- **ansible-lockdown STIG roles** — [`UBUNTU22-STIG`](https://github.com/ansible-lockdown/UBUNTU22-STIG) for environments requiring DoD-level compliance
+- **Automate hardening/auditing** — trigger hardening/auditing automatically using the [Red Hat Ansible Automation Platform](https://www.redhat.com/en/technologies/management/ansible/automation-controller) or [AWX](https://github.com/ansible/awx)
+- **Other hardening candidates** — Explore the available playbooks to harden other OSs, other devices like Cisco network switches or even applications like Apache.
 
 ### 8.5 Resources
 

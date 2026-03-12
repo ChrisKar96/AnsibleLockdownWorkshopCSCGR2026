@@ -41,9 +41,10 @@ audit_report_format: json
 
 # Built-in report fetch — the roles pull reports back to the controller after
 # every audit run. Reports land in reports/<hostname>/ relative to the project root.
+fetch_audit_files: true
 fetch_audit_output: true
 audit_output_collection_method: fetch
-audit_output_destination: "reports/{{ inventory_hostname }}/"
+audit_output_destination: "{{ playbook_dir }}/../reports/{{ inventory_hostname }}/"
 
 # --- Common role behaviour ---
 # Never reboot automatically — the operator decides when to reboot.
@@ -66,7 +67,8 @@ deb12cis_allow_auditd_uid_user_exclusions: true
 deb12cis_auditd_uid_exclude:
   - ansible
 
-ubtu22cis_allow_auditd_uid_user_exclusions: true
+# In the Ubuntu 22 role the prefix for this variable is missing for some reason...
+allow_auditd_uid_user_exclusions: true
 ubtu22cis_auditd_uid_exclude:
   - ansible
 

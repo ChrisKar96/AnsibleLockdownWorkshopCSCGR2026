@@ -37,3 +37,18 @@ deb12cis_disruption_high: false
 # for container workloads on the controller:
 #   deb12cis_rule_1_1_1_1: false   # cramfs
 #   deb12cis_rule_1_1_1_2: false   # freevxfs
+
+# Override the default value to add the SSH port in the list of allow out ports
+deb12cis_ufw_allow_out_ports:
+  - port: 53
+    proto: tcp
+  - port: 53
+    proto: udp
+  - port: 80
+    proto: tcp
+  - port: 123
+    proto: udp
+  - port: 443
+    proto: tcp
+  - port: 22
+    proto: tcp
