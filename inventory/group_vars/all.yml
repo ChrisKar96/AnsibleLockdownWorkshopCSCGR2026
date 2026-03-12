@@ -33,6 +33,18 @@ audit_log_dir: /var/tmp
 # Do not set to true here — harden.yml needs this to be false.
 audit_only: false
 
+# Audit report format — passed to Goss via the role's audit_format variable.
+# Supported values: json, documentation, rspecish, tap, junit, nagios, silent
+# json is the most portable: can be ingested by ELK, Grafana, or parsed with jq.
+# Switch to html for a self-contained, browser-viewable report (requires Goss ≥ v0.4.0).
+audit_report_format: json
+
+# Built-in report fetch — the roles pull reports back to the controller after
+# every audit run. Reports land in reports/<hostname>/ relative to the project root.
+fetch_audit_output: true
+audit_output_collection_method: fetch
+audit_output_destination: "reports/{{ inventory_hostname }}/"
+
 # --- Common role behaviour ---
 # Never reboot automatically — the operator decides when to reboot.
 # skip_reboot is an unprefixed shared variable used by both roles.
@@ -70,3 +82,11 @@ deb12cis_sudoers_exclude_nopasswd_list:
 ubtu22cis_sudoers_exclude_nopasswd_list:
   - admin
   - ansible
+
+# --- Ubuntu role workarounds ---
+# Rule 3.1.2 ("Ensure wireless interfaces are disabled") uses a registered dict
+# variable (prelim_wireless_adapters_exist) directly in a when: conditional.
+# Newer Ansible is strict about boolean conditionals and fails with:
+#   "Conditional result was derived from value of type 'dict'"
+# VMs have no wireless adapters, so this control is irrelevant and safe to skip.
+ubtu22cis_rule_3_1_2: false

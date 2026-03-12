@@ -39,6 +39,10 @@
   hosts: cis
   become: true
   gather_facts: true
+  vars:
+    # audit_format lives in the role's vars/ (higher precedence than group_vars),
+    # so it must be overridden here at play level.
+    audit_format: "{{ audit_report_format }}"
   tasks:
 
     - name: Apply DEBIAN12-CIS hardening

@@ -4,12 +4,12 @@
 # Runs the Goss compliance audit against all hosts in the [cis] group
 # in READ-ONLY mode. No system changes are applied.
 #
-# After the audit completes, the Goss JSON report is automatically fetched
-# from each host into:
-#   reports/<hostname>/goss_report_<timestamp>.json
+# After the audit completes, each role's built-in fetch mechanism copies the
+# Goss report back to the controller into:
+#   reports/<hostname>/<hostname>-<benchmark>-<version>_pre_scan_<epoch>.<format>
 #
-# The timestamp comes from ansible_date_time gathered at play start, so all
-# reports from the same run share a consistent timestamp in their filenames.
+# The report format is controlled by audit_report_format in group_vars/all.yml
+# (json by default). Switch to html for a browser-viewable report.
 #
 # Usage:
 #   # Before hardening — establish a baseline
@@ -44,6 +44,9 @@
   gather_facts: true  # also populates ansible_date_time for report timestamps
   vars:
     audit_only: true   # override group_vars/all.yml — no changes, audit only
+    # audit_format lives in the role's vars/ (higher precedence than group_vars),
+    # so it must be overridden here at play level.
+    audit_format: "{{ audit_report_format }}"
 
   tasks:
 
@@ -60,33 +63,3 @@
       when:
         - ansible_distribution == "Ubuntu"
         - ansible_distribution_major_version == "22"
-
-  post_tasks:
-
-    - name: Create local report directory for {{ inventory_hostname }}
-      ansible.builtin.file:
-        path: "reports/{{ inventory_hostname }}"
-        state: directory
-        mode: '0755'
-      delegate_to: localhost
-      become: false
-
-    # The roles write the Goss report to audit_log_dir (set in group_vars/all.yml).
-    # Rather than hardcoding the filename (which the role generates), we locate the
-    # most recently written JSON file in that directory — robust against naming differences
-    # between role versions and between Debian/Ubuntu defaults.
-    - name: Find Goss report generated during audit on {{ inventory_hostname }}
-      ansible.builtin.find:
-        paths: "{{ audit_log_dir | default('/var/tmp') }}"
-        patterns: "*.json"
-        age: "-10m"    # created within the last 10 minutes
-        recurse: false
-      register: _goss_reports
-
-    - name: Fetch Goss report from {{ inventory_hostname }}
-      ansible.builtin.fetch:
-        src: "{{ (_goss_reports.files | sort(attribute='mtime') | last).path }}"
-        dest: "reports/{{ inventory_hostname }}/goss_report_{{ ansible_date_time.iso8601_basic_short }}.json"
-        flat: true
-      when: _goss_reports.files | length > 0
-      failed_when: false  # don't fail if the report wasn't generated (e.g. OS not matched)

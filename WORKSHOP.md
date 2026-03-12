@@ -222,21 +222,38 @@ All commands in this section run on the **Ansible Controller** VM.
 
 ### 3.1 Install Ansible
 
+Install Ansible inside a Python virtual environment. This isolates the workshop dependencies from the system Python and avoids permission issues with `--user` installs.
+
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip git
-pip3 install --user ansible argcomplete passlib
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+sudo apt install -y python3 python3-venv git
+
+# Create and activate the venv
+python3 -m venv ~/ansible-venv
+source ~/ansible-venv/bin/activate
+
+# Install Ansible and required Python packages
+pip install ansible argcomplete passlib
+
+# Enable shell tab-completion for Ansible CLI tools
 activate-global-python-argcomplete --user
+
+# Auto-activate the venv in every future shell session
+echo 'source ~/ansible-venv/bin/activate' >> ~/.bashrc
 source ~/.bashrc
+
 ansible --version
 ```
 
 Confirm the output shows `ansible [core 2.12+]`.
 
-**argcomplete** provides tab-completion for all Ansible CLI tools (`ansible`, `ansible-playbook`, `ansible-galaxy`, etc.). `activate-global-python-argcomplete --user` installs a completion hook into `~/.bash_completion.d/` and sources it from `.bashrc` — after reloading the shell you can press Tab to complete hostnames, playbook paths, tags, and module names.
+**Why a venv?** A virtual environment creates an isolated Python installation under `~/ansible-venv/`. All packages installed inside it are completely separate from system Python packages — no `--user` flag conflicts, no version collisions with system tools, and easy to rebuild from scratch by deleting the directory.
 
-> **Production note — Execution Environments**: Installing Ansible via `pip` is appropriate for workshops and local development, but in production the recommended approach is **Execution Environments (EEs)** — container images that bundle a specific version of Ansible, all required collections, roles, and Python dependencies into a single reproducible artifact. EEs are the standard unit of execution in **AWX** and **Ansible Automation Platform (AAP)** and are built with `ansible-builder`. They eliminate dependency drift between operators and make automation portable across CI/CD pipelines and machines.
+**Why passlib?** The `bootstrap.yml` playbook uses Ansible's `password_hash('sha512')` Jinja2 filter to hash the generated service account password before setting it on the managed nodes. This filter depends on `passlib` being installed in the same Python environment as Ansible.
+
+**argcomplete** provides tab-completion for all Ansible CLI tools (`ansible`, `ansible-playbook`, `ansible-galaxy`, etc.). `activate-global-python-argcomplete --user` installs a completion hook into `~/.bash_completion.d/` — after reloading the shell you can press Tab to complete hostnames, playbook paths, tags, and module names.
+
+> **Production note — Execution Environments**: Using a venv is appropriate for workshops and local development, but in production the recommended approach is **Execution Environments (EEs)** — container images that bundle a specific version of Ansible, all required collections, roles, and Python dependencies into a single reproducible artifact. EEs are the standard unit of execution in **AWX** and **Ansible Automation Platform (AAP)** and are built with `ansible-builder`. They eliminate dependency drift between operators and make automation portable across CI/CD pipelines and machines.
 
 ### 3.2 Configure passwordless SSH to both targets
 
@@ -483,14 +500,14 @@ Open `roles/DEBIAN12-CIS/defaults/main.yml` and review:
 run_audit: false
 
 # Which benchmark level to apply?
-debian12cis_level1: true
-debian12cis_level2: false
+deb12cis_level_1: true
+deb12cis_level_2: false
 
 # Skip controls that have a high chance of breaking services?
-debian12cis_disruption_high: false
+deb12cis_disruption_high: false
 
 # Don't reboot automatically even if required by a control
-debian12cis_skip_reboot: true
+skip_reboot: true
 ```
 
 `defaults/main.yml` is where you customize the role's behavior. Always read through it before running in production — many controls are disabled by default because they require environment-specific decisions.
@@ -568,8 +585,10 @@ Every CIS control in a role can be disabled individually by setting its variable
 For example, to disable CIS Debian 12 rule 5.2.20 ("Ensure SSH MaxSessions is limited"):
 
 ```yaml
-debian12cis_rule_5_2_20: false
+deb12cis_rule_5_2_20: false
 ```
+
+> **Note on prefixes**: The roles use abbreviated prefixes for rule toggles — `deb12cis_rule_*` (not `debian12cis_rule_*`) for Debian and `ubtu22cis_rule_*` (not `ubuntu22cis_rule_*`) for Ubuntu. Using the wrong prefix causes the variable to be silently ignored and the role falls back to its default (`true`), so the control still runs.
 
 **Where to place these overrides**:
 
@@ -626,21 +645,21 @@ What happens during the run:
 
 ### 5.2 Reports are fetched automatically
 
-The audit playbook's `post_tasks` create a per-host subdirectory under `reports/` and fetch the Goss JSON report automatically at the end of each run. No manual step is needed.
+Each CIS role has a built-in report fetch mechanism (`fetch_audit_output: true` in `group_vars/all.yml`). At the end of every audit run the role copies the Goss report from each target directly to the controller — no custom post-tasks needed.
 
 After the playbook completes you will have:
 
 ```
 reports/
 ├── ansible-controller/
-│   └── goss_report_20260311T105200Z.json
+│   └── ansible-controller-DEBIAN12-CIS-1.1.0_pre_scan_1741694523.json
 ├── debian-target/
-│   └── goss_report_20260311T105200Z.json
+│   └── debian-target-DEBIAN12-CIS-1.1.0_pre_scan_1741694523.json
 └── ubuntu-target/
-    └── goss_report_20260311T105200Z.json
+    └── ubuntu-target-UBUNTU22-CIS-2.0.0_pre_scan_1741694523.json
 ```
 
-The timestamp in each filename is `ansible_date_time.iso8601_basic_short` — collected from the host at the start of the play, so all reports from the same run share a consistent timestamp and are easy to sort.
+The filename encodes the hostname, the benchmark name and version, whether this was a pre- or post-remediation scan, and a Unix epoch timestamp. The `audit_report_format` variable in `group_vars/all.yml` controls the file extension and output format (`json` by default; switch to `html` for a browser-viewable report).
 
 ### 5.3 Read the scores
 
@@ -887,7 +906,7 @@ The scores should be identical to the post-hardening audit from Section 7 — co
 
 ### 8.4 What to explore next
 
-- **Level 2 hardening** — set `debian12cis_level2: true` in `group_vars/cis_level1.yml` (or move the host to `cis_level2`) and observe what additional controls are applied
+- **Level 2 hardening** — set `deb12cis_level_2: true` / `ubtu22cis_level_2: true` in `group_vars/cis_level1.yml` (or move the host to the `cis_level2` group) and observe what additional controls are applied
 - **Ansible Vault** — encrypting secrets (passwords, keys) inside playbooks and vars files
 - **CI/CD integration** — trigger hardening automatically in GitHub Actions or GitLab CI when a new base image is built
 - **Configuration drift detection** — run the audit playbook on a cron job; alert when the `failed` count increases
