@@ -6,9 +6,9 @@
 # Test thoroughly — some Level 2 controls may impact running services.
 
 # Debian 12 role level flags
-debian12cis_level1: true
-debian12cis_level2: true
+deb12cis_level_1: true
+deb12cis_level_2: true
 
 # Ubuntu 22.04 role level flags
-ubuntu22cis_level1: true
-ubuntu22cis_level2: true
+ubtu22cis_level_1: true
+ubtu22cis_level_2: true

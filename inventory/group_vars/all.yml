@@ -35,13 +35,13 @@ audit_only: false
 
 # --- Common role behaviour ---
 # Never reboot automatically — the operator decides when to reboot.
-debian12cis_skip_reboot: true
-ubuntu22cis_skip_reboot: true
+# skip_reboot is an unprefixed shared variable used by both roles.
+skip_reboot: true
 
 # Do not apply controls that are very likely to break running services.
 # Flip to true only after reviewing the relevant controls for your env.
-debian12cis_disruption_high: false
-ubuntu22cis_disruption_high: false
+deb12cis_disruption_high: false
+ubtu22cis_disruption_high: false
 
 # --- Ansible service account exclusions from auditd UID rules ---
 # The CIS roles configure auditd to log actions by every UID. Without
@@ -50,10 +50,23 @@ ubuntu22cis_disruption_high: false
 # from UID-space rules while still capturing critical events such as
 # logins, sshd activity, and privilege escalation.
 # See: https://ansible-lockdown.readthedocs.io/en/latest/CIS/CIS_advanced.html
-debian12cis_allow_auditd_uid_user_exclusions: true
-debian12cis_auditd_uid_exclude:
+deb12cis_allow_auditd_uid_user_exclusions: true
+deb12cis_auditd_uid_exclude:
   - ansible
 
-ubuntu22cis_allow_auditd_uid_user_exclusions: true
-ubuntu22cis_auditd_uid_exclude:
+ubtu22cis_allow_auditd_uid_user_exclusions: true
+ubtu22cis_auditd_uid_exclude:
+  - ansible
+
+# --- Ansible service account exclusion from sudoers password enforcement ---
+# CIS rules 5.2.4 (Debian) / 5.3.4 (Ubuntu) replace NOPASSWD with PASSWD in
+# every sudoers file. The ansible service account needs passwordless sudo to
+# run playbooks, so it is exempted here while the rule stays active for all
+# other accounts.
+deb12cis_sudoers_exclude_nopasswd_list:
+  - admin    # role default — preserve it
+  - ansible  # service account created by bootstrap.yml
+
+ubtu22cis_sudoers_exclude_nopasswd_list:
+  - admin
   - ansible

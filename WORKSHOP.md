@@ -225,7 +225,7 @@ All commands in this section run on the **Ansible Controller** VM.
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-pip git
-pip3 install --user ansible argcomplete
+pip3 install --user ansible argcomplete passlib
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 activate-global-python-argcomplete --user
 source ~/.bashrc

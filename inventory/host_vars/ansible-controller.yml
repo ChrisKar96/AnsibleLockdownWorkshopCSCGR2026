@@ -23,7 +23,7 @@ ansible_user: debian
 # Do not apply high-disruption controls on the controller.
 # Examples: controls that restart networking, reconfigure PAM in ways that
 # break active sessions, or strip SUID bits from binaries Ansible needs.
-debian12cis_disruption_high: false
+deb12cis_disruption_high: false
 
 # ── Per-control exclusion examples ────────────────────────────────────────────
 # Uncomment to disable a specific CIS control only on this host.
@@ -31,9 +31,9 @@ debian12cis_disruption_high: false
 #
 # Disable "Ensure SSH MaxSessions is limited" if Ansible multiplexing needs
 # more than the CIS-recommended session count:
-#   debian12cis_rule_5_2_20: false
+#   deb12cis_rule_5_2_20: false
 #
 # Disable filesystem mount-restriction controls if you need overlay/loop mounts
 # for container workloads on the controller:
-#   debian12cis_rule_1_1_1_1: false   # cramfs
-#   debian12cis_rule_1_1_1_2: false   # freevxfs
+#   deb12cis_rule_1_1_1_1: false   # cramfs
+#   deb12cis_rule_1_1_1_2: false   # freevxfs

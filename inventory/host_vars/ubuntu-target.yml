@@ -16,7 +16,7 @@ ansible_user: ubuntu
 # Examples of further per-host overrides:
 #
 # Allow high-disruption controls on this host only (e.g. a disposable lab VM):
-#   ubuntu22cis_disruption_high: true
+#   ubtu22cis_disruption_high: true
 #
 # Disable a specific control that conflicts with an application on this host:
-#   ubuntu22cis_rule_2_1_3: false
+#   ubtu22cis_rule_2_1_3: false

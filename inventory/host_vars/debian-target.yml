@@ -16,7 +16,7 @@ ansible_user: debian
 # Examples of further per-host overrides:
 #
 # Allow high-disruption controls on this host only (e.g. a disposable lab VM):
-#   debian12cis_disruption_high: true
+#   deb12cis_disruption_high: true
 #
 # Disable a specific control that conflicts with an application on this host:
-#   debian12cis_rule_2_1_3: false
+#   deb12cis_rule_2_1_3: false
