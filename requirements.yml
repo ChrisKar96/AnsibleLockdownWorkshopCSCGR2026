@@ -1,0 +1,24 @@
+---
+# requirements.yml
+#
+# Declares the Ansible collections and roles used by this project.
+# Install everything with:
+#
+#   ansible-galaxy install -r requirements.yml -p roles/
+#
+# The roles/ directory is gitignored — run this command after cloning
+# the repo and before running any playbooks.
+
+collections:
+  # ansible.posix is bundled with the full `ansible` pip package but declared
+  # here explicitly so the project also works with `ansible-core`.
+  - name: ansible.posix
+
+roles:
+  - name: DEBIAN12-CIS
+    src: git+https://github.com/ansible-lockdown/DEBIAN12-CIS.git
+    version: main
+
+  - name: UBUNTU22-CIS
+    src: git+https://github.com/ansible-lockdown/UBUNTU22-CIS.git
+    version: main

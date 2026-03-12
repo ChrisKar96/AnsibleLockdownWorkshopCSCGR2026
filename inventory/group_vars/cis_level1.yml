@@ -1,0 +1,50 @@
+---
+# group_vars/cis_level1.yml
+#
+# Variables applied to every host in the [cis_level1] group.
+# Each role only reads its own prefixed variables, so defining both
+# OS roles' level flags here is harmless and keeps level config in one place.
+
+# Debian 12 role level flags
+debian12cis_level1: true
+debian12cis_level2: false
+
+# Ubuntu 22.04 role level flags
+ubuntu22cis_level1: true
+ubuntu22cis_level2: false
+
+# ── Disabling specific controls ───────────────────────────────────────────────
+#
+# Individual CIS controls can be disabled by setting their corresponding
+# variable to false. The variable name mirrors the CIS benchmark rule number,
+# prefixed by the role name:
+#
+#   debian12cis_rule_<section>_<subsection>[_<item>]: false
+#   ubuntu22cis_rule_<section>_<subsection>[_<item>]: false
+#
+# Setting a rule variable here disables it for EVERY host in cis_level1.
+# To disable it on ONE host only, place the variable in that host's host_vars.
+#
+# Common reasons to disable a control:
+#   - It conflicts with a specific application (e.g. a web server needs
+#     world-readable directories that a filesystem control would lock down)
+#   - It restarts a service at an inconvenient time
+#   - It affects SSH settings needed by automation tooling
+#
+# Examples (uncomment to apply):
+#
+# Disable USB storage restriction (rule 1.1.1.x) on hosts that need USB:
+#   debian12cis_rule_1_1_1_1: false
+#   ubuntu22cis_rule_1_1_1_1: false
+#
+# Disable "Ensure SSH root login is disabled" if jump-host access needs root:
+#   debian12cis_rule_5_2_8: false
+#   ubuntu22cis_rule_5_2_8: false
+#
+# Disable "Ensure SSH MaxSessions is limited" for Ansible connection pooling:
+#   debian12cis_rule_5_2_20: false
+#   ubuntu22cis_rule_5_2_20: false
+#
+# Disable core-dump restrictions if an application requires them for debugging:
+#   debian12cis_rule_1_5_1: false
+#   ubuntu22cis_rule_1_5_1: false

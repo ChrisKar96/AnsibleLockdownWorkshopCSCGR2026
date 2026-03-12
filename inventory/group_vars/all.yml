@@ -1,0 +1,59 @@
+---
+# group_vars/all.yml
+#
+# Variables applied to every host in the inventory, regardless of OS
+# or CIS level. These are defaults that can be overridden in a more
+# specific group_vars file or in host_vars.
+
+ansible_python_interpreter: /usr/bin/python3
+
+# --- Connection ---
+# Default connection user — the dedicated "ansible" service account created by
+# bootstrap.yml. Before bootstrap.yml has been run, this is overridden per-host
+# in host_vars/ with the initial OS user (ansible_user: debian / ubuntu).
+# After bootstrap succeeds, comment out those host_var lines and this takes over.
+ansible_user: ansible
+
+# --- Goss audit settings ---
+# The Goss binary is downloaded once to the Ansible Controller by a pre-play
+# in audit.yml and harden.yml, then copied to each target by the role.
+# Targets do not need outbound internet access.
+run_audit: true
+setup_audit: true
+get_audit_binary_method: copy   # copy from controller instead of downloading on each target
+audit_bin_copy_location: /tmp   # directory on the controller where the Goss binary is staged
+
+# Normalise the audit output directory across both roles.
+# UBUNTU22-CIS defaults to /opt; DEBIAN12-CIS defaults to /var/tmp.
+# Setting this here ensures both roles write reports to the same path,
+# which is what the audit playbook's fetch task expects.
+audit_log_dir: /var/tmp
+
+# Set to true in audit.yml play vars to skip remediation entirely.
+# Do not set to true here — harden.yml needs this to be false.
+audit_only: false
+
+# --- Common role behaviour ---
+# Never reboot automatically — the operator decides when to reboot.
+debian12cis_skip_reboot: true
+ubuntu22cis_skip_reboot: true
+
+# Do not apply controls that are very likely to break running services.
+# Flip to true only after reviewing the relevant controls for your env.
+debian12cis_disruption_high: false
+ubuntu22cis_disruption_high: false
+
+# --- Ansible service account exclusions from auditd UID rules ---
+# The CIS roles configure auditd to log actions by every UID. Without
+# exclusions the automation account generates significant noise, making
+# audit logs harder to read. These settings exclude the "ansible" account
+# from UID-space rules while still capturing critical events such as
+# logins, sshd activity, and privilege escalation.
+# See: https://ansible-lockdown.readthedocs.io/en/latest/CIS/CIS_advanced.html
+debian12cis_allow_auditd_uid_user_exclusions: true
+debian12cis_auditd_uid_exclude:
+  - ansible
+
+ubuntu22cis_allow_auditd_uid_user_exclusions: true
+ubuntu22cis_auditd_uid_exclude:
+  - ansible

@@ -1,0 +1,39 @@
+---
+# host_vars/ansible-controller.yml
+#
+# The Ansible Controller is also a Debian 12 node and is itself hardened
+# by the same CIS role as debian-target. Because the controller runs its
+# own playbooks, ansible_connection is set to "local" — tasks execute
+# directly in the current process without an SSH round-trip.
+
+# ansible_host: 127.0.0.1  # <-- not required for local connection, but set if needed
+
+ansible_connection: local
+
+# Bootstrap workflow for ansible_user:
+#   BEFORE running bootstrap.yml — keep the line below uncommented.
+#   AFTER bootstrap.yml succeeds — comment it out so the group_vars/all.yml
+#   default (ansible_user: ansible) takes over.
+ansible_user: debian
+
+# ── Stability overrides ───────────────────────────────────────────────────────
+# The controller also runs Ansible itself, SSH, and sudo for automation.
+# A few controls that are safe on target VMs can cause trouble here.
+
+# Do not apply high-disruption controls on the controller.
+# Examples: controls that restart networking, reconfigure PAM in ways that
+# break active sessions, or strip SUID bits from binaries Ansible needs.
+debian12cis_disruption_high: false
+
+# ── Per-control exclusion examples ────────────────────────────────────────────
+# Uncomment to disable a specific CIS control only on this host.
+# Rule IDs match the CIS Debian 12 benchmark numbering.
+#
+# Disable "Ensure SSH MaxSessions is limited" if Ansible multiplexing needs
+# more than the CIS-recommended session count:
+#   debian12cis_rule_5_2_20: false
+#
+# Disable filesystem mount-restriction controls if you need overlay/loop mounts
+# for container workloads on the controller:
+#   debian12cis_rule_1_1_1_1: false   # cramfs
+#   debian12cis_rule_1_1_1_2: false   # freevxfs

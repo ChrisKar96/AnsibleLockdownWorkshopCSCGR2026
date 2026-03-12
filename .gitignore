@@ -1,0 +1,11 @@
+# Goss compliance reports fetched from targets
+reports/**/*.json
+
+# Ansible retry files
+*.retry
+
+# Roles installed via ansible-galaxy — not tracked in this repo
+# Install with: ansible-galaxy install -r requirements.yml -p roles/
+roles/*/
+
+.vscode

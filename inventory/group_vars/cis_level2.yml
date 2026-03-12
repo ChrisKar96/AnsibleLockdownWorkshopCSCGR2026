@@ -1,0 +1,14 @@
+---
+# group_vars/cis_level2.yml
+#
+# Variables applied to every host in the [cis_level2] group.
+# Level 2 includes all Level 1 controls plus additional, stricter ones.
+# Test thoroughly — some Level 2 controls may impact running services.
+
+# Debian 12 role level flags
+debian12cis_level1: true
+debian12cis_level2: true
+
+# Ubuntu 22.04 role level flags
+ubuntu22cis_level1: true
+ubuntu22cis_level2: true

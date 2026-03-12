@@ -1,0 +1,92 @@
+---
+# playbooks/audit.yml
+#
+# Runs the Goss compliance audit against all hosts in the [cis] group
+# in READ-ONLY mode. No system changes are applied.
+#
+# After the audit completes, the Goss JSON report is automatically fetched
+# from each host into:
+#   reports/<hostname>/goss_report_<timestamp>.json
+#
+# The timestamp comes from ansible_date_time gathered at play start, so all
+# reports from the same run share a consistent timestamp in their filenames.
+#
+# Usage:
+#   # Before hardening — establish a baseline
+#   ansible-playbook playbooks/audit.yml
+#
+#   # After hardening — measure improvement
+#   ansible-playbook playbooks/audit.yml
+
+# Play 1 — Download the Goss binary to the Ansible Controller.
+# The targets are assumed to have no outbound internet access, so we fetch
+# the binary once here and the CIS roles copy it from the controller
+# (get_audit_binary_method: copy in group_vars/all.yml).
+- name: Download Goss binary to Ansible Controller
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    _goss_version: v0.4.8
+    _goss_arch: AMD64
+  tasks:
+    - name: Download Goss {{ _goss_version }} binary
+      ansible.builtin.get_url:
+        url: "https://github.com/goss-org/goss/releases/download/{{ _goss_version }}/goss-linux-{{ _goss_arch }}"
+        dest: "/tmp/goss-linux-{{ _goss_arch }}"
+        mode: '0755'
+        checksum: "sha256:85d00b7bba5f175bec95de7dfe1f71f8f25204914aad4c6f03c8457868eb6e2f"
+
+# Play 2 — Run the compliance audit on all targets.
+- name: CIS Compliance Audit
+  hosts: cis
+  become: true
+  gather_facts: true  # also populates ansible_date_time for report timestamps
+  vars:
+    audit_only: true   # override group_vars/all.yml — no changes, audit only
+
+  tasks:
+
+    - name: Audit with DEBIAN12-CIS
+      ansible.builtin.include_role:
+        name: DEBIAN12-CIS
+      when:
+        - ansible_distribution == "Debian"
+        - ansible_distribution_major_version == "12"
+
+    - name: Audit with UBUNTU22-CIS
+      ansible.builtin.include_role:
+        name: UBUNTU22-CIS
+      when:
+        - ansible_distribution == "Ubuntu"
+        - ansible_distribution_major_version == "22"
+
+  post_tasks:
+
+    - name: Create local report directory for {{ inventory_hostname }}
+      ansible.builtin.file:
+        path: "reports/{{ inventory_hostname }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      become: false
+
+    # The roles write the Goss report to audit_log_dir (set in group_vars/all.yml).
+    # Rather than hardcoding the filename (which the role generates), we locate the
+    # most recently written JSON file in that directory — robust against naming differences
+    # between role versions and between Debian/Ubuntu defaults.
+    - name: Find Goss report generated during audit on {{ inventory_hostname }}
+      ansible.builtin.find:
+        paths: "{{ audit_log_dir | default('/var/tmp') }}"
+        patterns: "*.json"
+        age: "-10m"    # created within the last 10 minutes
+        recurse: false
+      register: _goss_reports
+
+    - name: Fetch Goss report from {{ inventory_hostname }}
+      ansible.builtin.fetch:
+        src: "{{ (_goss_reports.files | sort(attribute='mtime') | last).path }}"
+        dest: "reports/{{ inventory_hostname }}/goss_report_{{ ansible_date_time.iso8601_basic_short }}.json"
+        flat: true
+      when: _goss_reports.files | length > 0
+      failed_when: false  # don't fail if the report wasn't generated (e.g. OS not matched)

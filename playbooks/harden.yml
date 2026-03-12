@@ -1,0 +1,56 @@
+---
+# playbooks/harden.yml
+#
+# Applies CIS hardening to all hosts in the [cis] group in parallel.
+# The correct role is selected automatically based on each host's OS
+# and major version — no manual per-OS configuration required.
+#
+# CIS level (1 or 2) is driven entirely by which child group the host
+# belongs to (cis_level1 / cis_level2) via group_vars — this playbook
+# needs no changes when hosts move between levels.
+#
+# Run a second time to verify idempotency (expect changed=0):
+#   ansible-playbook playbooks/harden.yml
+#
+# Usage:
+#   ansible-playbook playbooks/harden.yml
+
+# Play 1 — Download the Goss binary to the Ansible Controller.
+# The targets are assumed to have no outbound internet access, so we fetch
+# the binary once here and the CIS roles copy it from the controller
+# (get_audit_binary_method: copy in group_vars/all.yml).
+- name: Download Goss binary to Ansible Controller
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    _goss_version: v0.4.8
+    _goss_arch: AMD64
+  tasks:
+    - name: Download Goss {{ _goss_version }} binary
+      ansible.builtin.get_url:
+        url: "https://github.com/goss-org/goss/releases/download/{{ _goss_version }}/goss-linux-{{ _goss_arch }}"
+        dest: "/tmp/goss-linux-{{ _goss_arch }}"
+        mode: '0755'
+        checksum: "sha256:85d00b7bba5f175bec95de7dfe1f71f8f25204914aad4c6f03c8457868eb6e2f"
+
+# Play 2 — Apply CIS hardening to all targets.
+- name: CIS Hardening
+  hosts: cis
+  become: true
+  gather_facts: true
+  tasks:
+
+    - name: Apply DEBIAN12-CIS hardening
+      ansible.builtin.include_role:
+        name: DEBIAN12-CIS
+      when:
+        - ansible_distribution == "Debian"
+        - ansible_distribution_major_version == "12"
+
+    - name: Apply UBUNTU22-CIS hardening
+      ansible.builtin.include_role:
+        name: UBUNTU22-CIS
+      when:
+        - ansible_distribution == "Ubuntu"
+        - ansible_distribution_major_version == "22"

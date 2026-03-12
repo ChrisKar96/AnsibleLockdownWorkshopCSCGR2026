@@ -1,0 +1,59 @@
+---
+# playbooks/bootstrap.yml
+#
+# One-time setup playbook — run BEFORE any other playbook.
+#
+# Connects as the initial OS user defined per-host in host_vars
+# (ansible_user: debian / ubuntu) and creates a dedicated "ansible"
+# service account on every managed node. The controller's SSH public
+# key is read automatically from bootstrap_pubkey_path and authorised
+# exclusively on the new account.
+#
+# Prerequisites:
+#   - Passwordless SSH from the controller to each target (ssh-copy-id)
+#   - The initial OS user must have passwordless sudo on the target
+#     (default on Debian 12 and Ubuntu 22.04 cloud/VM images)
+#
+# After this playbook succeeds:
+#   1. Comment out the ansible_user line in each host_vars file.
+#   2. The group_vars/all.yml default (ansible_user: ansible) takes over.
+#   3. All subsequent playbooks connect as the "ansible" account.
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap.yml
+
+- name: Bootstrap Ansible service account on all targets
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    _bootstrap_user: ansible
+    # Path to the controller's SSH public key to authorise on the new account.
+    # Override with -e bootstrap_pubkey_path=/path/to/other.pub if needed.
+    bootstrap_pubkey_path: "~/.ssh/id_ed25519.pub"
+
+  tasks:
+
+    - name: Create the ansible service account
+      ansible.builtin.user:
+        name: "{{ _bootstrap_user }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Grant passwordless sudo to the ansible account
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/ansible
+        content: "{{ _bootstrap_user }} ALL=(ALL) NOPASSWD: ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s   # validates syntax before placing the file
+
+    - name: Authorise the controller's SSH public key for the ansible account
+      ansible.posix.authorized_key:
+        user: "{{ _bootstrap_user }}"
+        key: "{{ lookup('file', bootstrap_pubkey_path) }}"
+        state: present
+        exclusive: true   # ensures no other keys are left on this account

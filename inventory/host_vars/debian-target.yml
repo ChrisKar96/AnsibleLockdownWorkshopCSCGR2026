@@ -1,0 +1,22 @@
+---
+# host_vars/debian-target.yml
+#
+# Host-specific variable overrides for debian-target.
+# Values here take precedence over group_vars for this host only.
+
+# ansible_host: 192.168.1.10   # <-- replace with the actual IP of debian-target
+
+# Bootstrap workflow for ansible_user:
+#   BEFORE running bootstrap.yml — keep the line below uncommented so Ansible
+#   connects as the initial OS user that has sudo on the target VM.
+#   AFTER bootstrap.yml succeeds — comment it out. The group_vars/all.yml
+#   default (ansible_user: ansible) takes over automatically.
+ansible_user: debian
+
+# Examples of further per-host overrides:
+#
+# Allow high-disruption controls on this host only (e.g. a disposable lab VM):
+#   debian12cis_disruption_high: true
+#
+# Disable a specific control that conflicts with an application on this host:
+#   debian12cis_rule_2_1_3: false
